@@ -30,6 +30,7 @@ interface Application {
 
 export default function DashboardPage() {
   const { profile } = useAuthContext()
+  console.log(profile)
   const supabase = getSupabaseBrowserClient()
   const router = useRouter()
 
