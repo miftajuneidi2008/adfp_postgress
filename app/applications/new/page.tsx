@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { getSupabaseBrowserClient } from "@/lib/postgress/postgress"
 import { useAuthContext } from "@/components/auth/auth-provider"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useToast } from "@/components/notifications/toast-provider"
@@ -287,7 +287,7 @@ export default function NewApplicationPage() {
                     key={product.id}
                     type="button"
                     onClick={() => setSelectedProduct(product.id)}
-                    className={`p-4 border-2 rounded-lg text-left transition-all ${
+                    className={`p-4 border-2 rounded-lg text-left transition-all cursor-pointer ${
                       selectedProduct === product.id
                         ? "border-teal-500 bg-teal-50"
                         : "border-slate-200 hover:border-slate-300"
@@ -375,7 +375,7 @@ export default function NewApplicationPage() {
           </Card>
 
           <div className="flex justify-end gap-3">
-            <Button type="button" variant="outline" onClick={() => router.back()}>
+            <Button type="button" variant="outline" onClick={() => router.back()} className="cursor-pointer">
               Cancel
             </Button>
             <Button
@@ -383,10 +383,10 @@ export default function NewApplicationPage() {
               variant="outline"
               onClick={handleSaveAsDraft}
               disabled={loading || !selectedProduct || !customerName || !!nameError}
-            >
+            className="cursor-pointer">
               {loading ? "Saving..." : "Save as Draft"}
             </Button>
-            <Button type="submit" disabled={loading || !selectedProduct || !!nameError}>
+            <Button type="submit" disabled={loading || !selectedProduct || !!nameError} className="cursor-pointer">
               {loading ? "Submitting..." : "Submit Application"}
             </Button>
           </div>

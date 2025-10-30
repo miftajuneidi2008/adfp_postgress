@@ -1,6 +1,6 @@
 "use server"
 
-import { getSupabaseServerClient } from "@/lib/supabase/server"
+import { getSupabaseServerClient } from "@/lib/postgress/server"
 import { revalidatePath } from "next/cache"
 
 export async function getCurrentUser() {

@@ -15,7 +15,6 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useAuthContext } from "@/components/auth/auth-provider"
 import { useRouter } from "next/navigation"
-import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { useToast } from "@/components/notifications/toast-provider"
 
 interface Notification {
@@ -29,89 +28,88 @@ interface Notification {
 }
 
 export function AppHeader() {
-  const { profile, signOut } = useAuthContext()
+  const { user } = useAuthContext();
   const router = useRouter()
-  const supabase = getSupabaseBrowserClient()
   const { showToast } = useToast()
 
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
 
-  useEffect(() => {
-    if (profile) {
-      fetchNotifications()
+  // useEffect(() => {
+  //   if (user) {
+  //     fetchNotifications()
 
-      // Subscribe to real-time notifications
-      const channel = supabase
-        .channel("notifications")
-        .on(
-          "postgres_changes",
-          {
-            event: "INSERT",
-            schema: "public",
-            table: "notifications",
-            filter: `user_id=eq.${profile.id}`,
-          },
-          (payload) => {
-            const newNotification = payload.new as Notification
-            setNotifications((prev) => [newNotification, ...prev])
-            setUnreadCount((prev) => prev + 1)
+  //     // Subscribe to real-time notifications
+  //     const channel = supabase
+  //       .channel("notifications")
+  //       .on(
+  //         "postgres_changes",
+  //         {
+  //           event: "INSERT",
+  //           schema: "public",
+  //           table: "notifications",
+  //           filter: `user_id=eq.${profile.id}`,
+  //         },
+  //         (payload) => {
+  //           const newNotification = payload.new as Notification
+  //           setNotifications((prev) => [newNotification, ...prev])
+  //           setUnreadCount((prev) => prev + 1)
 
-            showToast({
-              title: newNotification.title,
-              message: newNotification.message,
-              type: "info",
-              action: newNotification.related_application_id
-                ? {
-                    label: "View Case",
-                    onClick: () => router.push(`/applications/${newNotification.related_application_id}`),
-                  }
-                : undefined,
-            })
-          },
-        )
-        .subscribe()
+  //           showToast({
+  //             title: newNotification.title,
+  //             message: newNotification.message,
+  //             type: "info",
+  //             action: newNotification.related_application_id
+  //               ? {
+  //                   label: "View Case",
+  //                   onClick: () => router.push(`/applications/${newNotification.related_application_id}`),
+  //                 }
+  //               : undefined,
+  //           })
+  //         },
+  //       )
+  //       .subscribe()
 
-      return () => {
-        supabase.removeChannel(channel)
-      }
-    }
-  }, [profile])
+  //     return () => {
+  //       supabase.removeChannel(channel)
+  //     }
+  //   }
+  // }, [profile])
 
   async function fetchNotifications() {
-    if (!profile) return
+    if (!user) return
 
-    const { data } = await supabase
-      .from("notifications")
-      .select("*")
-      .eq("user_id", profile.id)
-      .order("created_at", { ascending: false })
-      .limit(10)
+    // const { data } = await supabase
+    //   .from("notifications")
+    //   .select("*")
+    //   .eq("user_id", profile.id)
+    //   .order("created_at", { ascending: false })
+    //   .limit(10)
 
-    if (data) {
-      setNotifications(data)
-      setUnreadCount(data.filter((n) => !n.is_read).length)
-    }
+    // if (data) {
+    //   setNotifications(data)
+    //   setUnreadCount(data.filter((n) => !n.is_read).length)
+    // }
   }
 
   async function markAsRead(notificationId: string) {
-    await supabase.from("notifications").update({ is_read: true }).eq("id", notificationId)
+    //await supabase.from("notifications").update({ is_read: true }).eq("id", notificationId)
 
     setNotifications((prev) => prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n)))
     setUnreadCount((prev) => Math.max(0, prev - 1))
   }
 
   async function markAllAsRead() {
-    if (!profile) return
+    if (!user) return
 
-    await supabase.from("notifications").update({ is_read: true }).eq("user_id", profile.id).eq("is_read", false)
+  //  await supabase.from("notifications").update({ is_read: true }).eq("user_id", profile.id).eq("is_read", false)
 
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })))
     setUnreadCount(0)
   }
 
   const handleSignOut = async () => {
-    await signOut()
+    //await signOut()
     router.push("/login")
   }
 
@@ -214,12 +212,12 @@ export function AppHeader() {
               <Button variant="ghost" className="flex items-center gap-3">
                 <Avatar className="w-8 h-8">
                   <AvatarFallback className="bg-teal-100 text-teal-700 text-sm">
-                    {profile ? getInitials(profile.full_name) : "U"}
+                    {user ? getInitials(user.email) : "U"}
                   </AvatarFallback>
                 </Avatar>
                 <div className="text-left hidden md:block">
-                  <p className="text-sm font-medium">{profile?.full_name}</p>
-                  <p className="text-xs text-slate-500 capitalize">{profile?.role.replace("_", " ")}</p>
+                  <p className="text-sm font-medium">{user?.email}</p>
+                  <p className="text-xs text-slate-500 capitalize">{user?.role.replace("_", " ")}</p>
                 </div>
               </Button>
             </DropdownMenuTrigger>

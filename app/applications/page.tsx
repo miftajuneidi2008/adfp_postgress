@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Search } from "lucide-react"
-import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { getSupabaseBrowserClient } from "@/lib/postgress/postgress"
 import { useAuthContext } from "@/components/auth/auth-provider"
 import { useRouter } from "next/navigation"
 
@@ -121,7 +121,7 @@ export default function ApplicationsPage() {
             </h1>
           </div>
           {profile?.role === "branch_user" && (
-            <Button onClick={() => router.push("/applications/new")}>+ New Application</Button>
+            <Button onClick={() => router.push("/applications/new")} className="cursor-pointer">+ New Application</Button>
           )}
         </div>
 

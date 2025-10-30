@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Building2, Loader2 } from "lucide-react"
-import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { getSupabaseBrowserClient } from "@/lib/postgress/postgress"
 import { useAuthContext } from "@/components/auth/auth-provider"
 
 export default function SetupPage() {

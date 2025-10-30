@@ -27,3 +27,10 @@ export interface District {
   name: string
   code: string | null
 }
+
+export interface Product{
+     name: string,
+      description: string | null,
+      product_code: string | null,
+      is_active: boolean,
+}

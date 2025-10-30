@@ -13,45 +13,85 @@ ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
 
 -- ============================================
--- HELPER FUNCTIONS FOR RLS
+-- RLS CONTEXT FUNCTIONS
+-- These functions replace Supabase's auth.uid() and auth.role()
 -- ============================================
 
--- Get current user's role
+-- Function to set the current user ID for RLS context
+-- This function MUST be called at the start of every authenticated session.
+-- Example: SELECT set_config('app.current_user_id', 'some-uuid', false);
+CREATE OR REPLACE FUNCTION set_current_user_id(user_id_val UUID)
+RETURNS VOID AS $$
+BEGIN
+    PERFORM set_config('app.current_user_id', user_id_val::TEXT, FALSE);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER; -- SECURITY DEFINER allows it to set config for the session
+
+-- Function to get the current user ID from RLS context
+CREATE OR REPLACE FUNCTION current_user_id()
+RETURNS UUID AS $$
+    SELECT current_setting('app.current_user_id', TRUE)::UUID;
+$$ LANGUAGE sql STABLE;
+
+-- Function to set the current user role for RLS context (optional, can derive from current_user_id)
+-- Example: SELECT set_config('app.current_user_role', 'branch_user', false);
+CREATE OR REPLACE FUNCTION set_current_user_role(role_val user_role)
+RETURNS VOID AS $$
+BEGIN
+    PERFORM set_config('app.current_user_role', role_val::TEXT, FALSE);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to get the current user role from RLS context (or derive)
+CREATE OR REPLACE FUNCTION current_user_role()
+RETURNS user_role AS $$
+    -- Option 1: Retrieve from session config (if set directly by set_current_user_role)
+    -- SELECT current_setting('app.current_user_role', TRUE)::user_role;
+    
+    -- Option 2: Derive from current_user_id (more robust if set_current_user_role isn't consistently called)
+    SELECT role FROM users WHERE id = current_user_id();
+$$ LANGUAGE sql STABLE;
+
+-- ============================================
+-- HELPER FUNCTIONS FOR RLS (UPDATED)
+-- ============================================
+
+-- Get current user's role (now using our custom current_user_id())
 CREATE OR REPLACE FUNCTION get_user_role()
 RETURNS user_role AS $$
-    SELECT role FROM users WHERE id = auth.uid();
-$$ LANGUAGE sql SECURITY DEFINER;
+    SELECT role FROM users WHERE id = current_user_id();
+$$ LANGUAGE sql STABLE; -- Use STABLE as it doesn't modify data and only reads
 
 -- Get current user's branch
 CREATE OR REPLACE FUNCTION get_user_branch()
 RETURNS UUID AS $$
-    SELECT branch_id FROM users WHERE id = auth.uid();
-$$ LANGUAGE sql SECURITY DEFINER;
+    SELECT branch_id FROM users WHERE id = current_user_id();
+$$ LANGUAGE sql STABLE;
 
 -- Check if user is system admin
 CREATE OR REPLACE FUNCTION is_system_admin()
 RETURNS BOOLEAN AS $$
     SELECT EXISTS (
         SELECT 1 FROM users 
-        WHERE id = auth.uid() AND role = 'system_admin'
+        WHERE id = current_user_id() AND role = 'system_admin'
     );
-$$ LANGUAGE sql SECURITY DEFINER;
+$$ LANGUAGE sql STABLE;
 
 -- Check if user is approver
 CREATE OR REPLACE FUNCTION is_approver()
 RETURNS BOOLEAN AS $$
     SELECT EXISTS (
         SELECT 1 FROM users 
-        WHERE id = auth.uid() AND role = 'head_office_approver'
+        WHERE id = current_user_id() AND role = 'head_office_approver'
     );
-$$ LANGUAGE sql SECURITY DEFINER;
+$$ LANGUAGE sql STABLE;
 
 -- Check if approver can access application based on assignments
 CREATE OR REPLACE FUNCTION can_approver_access_application(app_id UUID)
 RETURNS BOOLEAN AS $$
     SELECT EXISTS (
         SELECT 1 FROM applications a
-        LEFT JOIN approver_assignments aa ON aa.approver_id = auth.uid()
+        LEFT JOIN approver_assignments aa ON aa.approver_id = current_user_id()
         WHERE a.id = app_id
         AND (
             -- Match by district
@@ -67,10 +107,10 @@ RETURNS BOOLEAN AS $$
             (aa.product_id IS NOT NULL AND a.product_id = aa.product_id)
         )
     );
-$$ LANGUAGE sql SECURITY DEFINER;
+$$ LANGUAGE sql STABLE;
 
 -- ============================================
--- USERS TABLE POLICIES
+-- USERS TABLE POLICIES (UPDATED)
 -- ============================================
 
 -- System admins can see all users
@@ -81,7 +121,7 @@ CREATE POLICY "System admins can view all users"
 -- Users can view their own profile
 CREATE POLICY "Users can view own profile"
     ON users FOR SELECT
-    USING (auth.uid() = id);
+    USING (current_user_id() = id);
 
 -- System admins can manage users
 CREATE POLICY "System admins can insert users"
@@ -93,21 +133,22 @@ CREATE POLICY "System admins can update users"
     USING (is_system_admin());
 
 -- ============================================
--- ORGANIZATIONAL STRUCTURE POLICIES
+-- ORGANIZATIONAL STRUCTURE POLICIES (UPDATED)
 -- ============================================
 
--- Everyone can view districts, branches, and products
+-- Everyone can view districts, branches, and products (if authenticated)
+-- We no longer have auth.role() = 'authenticated'. Instead, we check if a user_id is set.
 CREATE POLICY "Authenticated users can view districts"
     ON districts FOR SELECT
-    USING (auth.role() = 'authenticated');
+    USING (current_user_id() IS NOT NULL);
 
 CREATE POLICY "Authenticated users can view branches"
     ON branches FOR SELECT
-    USING (auth.role() = 'authenticated');
+    USING (current_user_id() IS NOT NULL);
 
 CREATE POLICY "Authenticated users can view products"
     ON products FOR SELECT
-    USING (auth.role() = 'authenticated');
+    USING (current_user_id() IS NOT NULL);
 
 -- Only system admins can manage organizational structure
 CREATE POLICY "System admins can manage districts"
@@ -123,7 +164,7 @@ CREATE POLICY "System admins can manage products"
     USING (is_system_admin());
 
 -- ============================================
--- APPLICATIONS POLICIES
+-- APPLICATIONS POLICIES (UPDATED)
 -- ============================================
 
 -- Branch users can view only their own submitted applications
@@ -131,7 +172,7 @@ CREATE POLICY "Branch users view own applications"
     ON applications FOR SELECT
     USING (
         get_user_role() = 'branch_user' 
-        AND submitted_by = auth.uid()
+        AND submitted_by = current_user_id()
     );
 
 -- Branch users can submit applications
@@ -139,7 +180,7 @@ CREATE POLICY "Branch users can submit applications"
     ON applications FOR INSERT
     WITH CHECK (
         get_user_role() = 'branch_user'
-        AND submitted_by = auth.uid()
+        AND submitted_by = current_user_id()
         AND branch_id = get_user_branch()
     );
 
@@ -165,7 +206,7 @@ CREATE POLICY "System admins view all applications"
     USING (is_system_admin());
 
 -- ============================================
--- APPLICATION STATUS HISTORY POLICIES
+-- APPLICATION STATUS HISTORY POLICIES (UPDATED)
 -- ============================================
 
 -- Users can view history for applications they can access
@@ -177,7 +218,7 @@ CREATE POLICY "View status history for accessible applications"
             WHERE a.id = application_id
             AND (
                 -- Branch user viewing their own
-                (get_user_role() = 'branch_user' AND a.submitted_by = auth.uid())
+                (get_user_role() = 'branch_user' AND a.submitted_by = current_user_id())
                 OR
                 -- Approver with access
                 (is_approver() AND can_approver_access_application(a.id))
@@ -189,12 +230,13 @@ CREATE POLICY "View status history for accessible applications"
     );
 
 -- Only authenticated users can insert status history (via triggers)
+-- Replaced auth.role() = 'authenticated' with current_user_id() IS NOT NULL
 CREATE POLICY "Insert status history"
     ON application_status_history FOR INSERT
-    WITH CHECK (auth.role() = 'authenticated');
+    WITH CHECK (current_user_id() IS NOT NULL);
 
 -- ============================================
--- APPROVER ASSIGNMENTS POLICIES
+-- APPROVER ASSIGNMENTS POLICIES (UPDATED)
 -- ============================================
 
 -- System admins can manage approver assignments
@@ -205,29 +247,30 @@ CREATE POLICY "System admins manage approver assignments"
 -- Approvers can view their own assignments
 CREATE POLICY "Approvers view own assignments"
     ON approver_assignments FOR SELECT
-    USING (approver_id = auth.uid());
+    USING (approver_id = current_user_id());
 
 -- ============================================
--- NOTIFICATIONS POLICIES
+-- NOTIFICATIONS POLICIES (UPDATED)
 -- ============================================
 
 -- Users can view their own notifications
 CREATE POLICY "Users view own notifications"
     ON notifications FOR SELECT
-    USING (user_id = auth.uid());
+    USING (user_id = current_user_id());
 
 -- Users can update their own notifications (mark as read)
 CREATE POLICY "Users update own notifications"
     ON notifications FOR UPDATE
-    USING (user_id = auth.uid());
+    USING (user_id = current_user_id());
 
 -- System can insert notifications
+-- Replaced auth.role() = 'authenticated' with current_user_id() IS NOT NULL
 CREATE POLICY "System can insert notifications"
     ON notifications FOR INSERT
-    WITH CHECK (auth.role() = 'authenticated');
+    WITH CHECK (current_user_id() IS NOT NULL);
 
 -- ============================================
--- AUDIT LOG POLICIES
+-- AUDIT LOG POLICIES (UPDATED)
 -- ============================================
 
 -- System admins can view audit logs
@@ -236,6 +279,7 @@ CREATE POLICY "System admins view audit logs"
     USING (is_system_admin());
 
 -- System can insert audit logs
+-- Replaced auth.role() = 'authenticated' with current_user_id() IS NOT NULL
 CREATE POLICY "System can insert audit logs"
     ON audit_log FOR INSERT
-    WITH CHECK (auth.role() = 'authenticated');
+    WITH CHECK (current_user_id() IS NOT NULL);

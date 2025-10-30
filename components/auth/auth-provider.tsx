@@ -1,33 +1,39 @@
-"use client"
+// components/auth/AuthProvider.tsx (A better location for this component)
+"use client";
 
-import type React from "react"
+import { SessionPayload } from "@/lib/auth/hooks";
+import React, { createContext, useContext, ReactNode } from "react";
 
-import { createContext, useContext } from "react"
-import { useAuth } from "@/lib/auth/hooks"
-import type { UserProfile } from "@/lib/auth/types"
-import type { User } from "@supabase/supabase-js"
-
+// Define the shape of your context data
 interface AuthContextType {
-  user: User | null
-  profile: UserProfile | null
-  loading: boolean
-  signOut: () => Promise<void>
-  refreshProfile: () => Promise<void>
-  isAuthenticated: boolean
+  user: SessionPayload | null;
+  // You could add other things here later, like login/logout functions
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+// Create the context with a type and a default value of null
+const AuthContext = createContext<AuthContextType | null>(null);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const auth = useAuth()
-
-  return <AuthContext.Provider value={auth}>{children}</AuthContext.Provider>
+// The provider component will receive the user session as a PROP
+export function AuthProvider({
+  children,
+  user, // The session data fetched from the server
+}: {
+  children: ReactNode;
+  user: SessionPayload | null;
+}) {
+  return (
+    // The value now matches the AuthContextType
+    <AuthContext.Provider value={{ user }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
-export function useAuthContext() {
-  const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error("useAuthContext must be used within an AuthProvider")
+// The hook to use the context in other client components
+export function useAuthContext(): AuthContextType {
+  const context = useContext(AuthContext);
+  if (context === null) {
+    throw new Error("useAuthContext must be used within an AuthProvider");
   }
-  return context
+  return context;
 }

@@ -1,74 +1,42 @@
-"use client"
+// lib/auth/session.ts  (Let's rename the file for clarity)
 
-import { useEffect, useState } from "react"
-import { getSupabaseBrowserClient } from "@/lib/supabase/client"
-import type { UserProfile } from "./types"
-import type { User } from "@supabase/supabase-js"
+import 'server-only';
+import jwt, { JwtPayload } from 'jsonwebtoken';
+import { cookies } from 'next/headers';
 
-export function useAuth() {
-  const [user, setUser] = useState<User | null>(null)
-  const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [loading, setLoading] = useState(true)
-  const supabase = getSupabaseBrowserClient()
+const JWT_SECRET = process.env.JWT_SECRET_KEY; // Ensure this is set in .env.local
 
-  useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        fetchProfile(session.user.id)
-      } else {
-        setLoading(false)
-      }
-    })
+// Define the structure of your user session from the JWT
+export interface SessionPayload extends JwtPayload {
+  id: string;
+  userRole: 'branch_user' | 'head_office_approver' | 'system_admin';
+  email:string
+  // Add any other data you store in the token
+}
 
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
-      if (session?.user) {
-        fetchProfile(session.user.id)
-      } else {
-        setProfile(null)
-        setLoading(false)
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
-
-  async function fetchProfile(userId: string) {
-    try {
-      const { data, error } = await supabase.from("users").select("*").eq("id", userId).maybeSingle()
-
-      if (error) throw error
-
-      setProfile(data)
-    } catch (error) {
-      console.error("[v0] Error fetching user profile:", error)
-      setProfile(null)
-    } finally {
-      setLoading(false)
-    }
+// Renamed from useAuth to be clearer about its purpose
+export async function getCurrentUser(): Promise<SessionPayload | null> {
+  if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET is not defined in environment variables');
   }
 
-  async function refreshProfile() {
-    if (user) {
-      await fetchProfile(user.id)
-    }
+    const token = await (await cookies()).get('token')?.value
+
+  if (!token) {
+    return null;
   }
 
-  async function signOut() {
-    await supabase.auth.signOut()
-  }
-
-  return {
-    user,
-    profile,
-    loading,
-    signOut,
-    refreshProfile,
-    isAuthenticated: !!user,
+  try {
+    // Verify and decode the token. The type assertion tells TS what to expect.
+    const decoded = await jwt.verify(token, JWT_SECRET) as SessionPayload;
+    return decoded;
+  } catch (error) {
+    console.error('JWT verification failed:', error);
+    return null;
   }
 }
+
+
+
+
+

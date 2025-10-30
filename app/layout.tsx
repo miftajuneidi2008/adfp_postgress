@@ -2,8 +2,10 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
-import { AuthProvider } from "@/components/auth/auth-provider"
 import { ToastProvider } from "@/components/notifications/toast-provider"
+import { AuthProvider } from "@/components/auth/auth-provider"
+import { getCurrentUser } from "@/lib/auth/hooks"
+import { getFilteredApplications } from "@/lib/data/dashboard"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -21,17 +23,20 @@ export const metadata: Metadata = {
     generator: 'v0.app'
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+    const user = await getCurrentUser();
+    const data = getFilteredApplications(user?.role, user?.id)
+    console.log(data)
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <AuthProvider>
+        <AuthProvider user={user}>
           <ToastProvider>{children}</ToastProvider>
-        </AuthProvider>
+          </AuthProvider>
       </body>
     </html>
   )

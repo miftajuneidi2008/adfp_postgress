@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button"
 
 export function AppNav() {
   const pathname = usePathname()
-  const { profile } = useAuthContext()
+  const { user } = useAuthContext()
 
   const navItems = [
     {
@@ -50,9 +50,9 @@ export function AppNav() {
     },
   ]
 
-  const visibleItems = profile ? navItems.filter((item) => item.roles.includes(profile.role)) : navItems
+  const visibleItems = user ? navItems.filter((item) => item.roles.includes(user.role)) : navItems
 
-  if (!profile) {
+  if (!user) {
     return (
       <nav className="border-b bg-amber-50">
         <div className="flex items-center justify-between px-6 py-3">

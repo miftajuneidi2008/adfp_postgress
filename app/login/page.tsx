@@ -4,7 +4,6 @@ import type React from "react"
 
 import { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -22,7 +21,6 @@ export default function LoginPage() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
-  const supabase = getSupabaseBrowserClient()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -30,18 +28,15 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const { data, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-
-      if (signInError) throw signInError
-
-      // Update last login
-      if (data.user) {
-        await supabase.from("users").update({ last_login: new Date().toISOString() }).eq("id", data.user.id)
-      }
-
+      const response = await fetch('http://localhost:3000/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+       const user = response.json()
+       //console.log(user)
       router.push(redirect)
       router.refresh()
     } catch (err: any) {
@@ -99,7 +94,7 @@ export default function LoginPage() {
               />
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full cursor-pointer" disabled={loading} >
               {loading ? "Signing in..." : "Sign In"}
             </Button>
           </form>
