@@ -11,6 +11,8 @@ export interface SessionPayload extends JwtPayload {
   id: string;
   userRole: 'branch_user' | 'head_office_approver' | 'system_admin';
   email:string
+  branch_id?: string | null;
+
   // Add any other data you store in the token
 }
 

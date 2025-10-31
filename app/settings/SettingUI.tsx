@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Trash2 } from "lucide-react"
 import { useAuthContext } from "@/components/auth/auth-provider"
+import { ApproverAssignment } from "@/lib/data/users"
 
 interface District {
   id: string
@@ -35,17 +36,7 @@ interface ApproverUser {
   email: string
 }
 
-interface ApproverAssignment {
-  id: string
-  approver_id: string
-  district_id: string | null
-  branch_id: string | null
-  product_id: string | null
-  approver?: ApproverUser
-  district?: District
-  branch?: Branch
-  product?: Product
-}
+
 
 export default function SettingUI({approver, district, branch, product, assignment}:{approver:ApproverUser[],district:District[], branch:Branch[], product:Product[], assignment:ApproverAssignment[]}) {
   const { user } = useAuthContext()
@@ -99,7 +90,7 @@ export default function SettingUI({approver, district, branch, product, assignme
 
     if (assignmentsToCreate.length > 0) {
     //   const { error } = await supabase.from("approver_assignments").insert(assignmentsToCreate)
-
+         console.log(assignmentsToCreate)
 
       try {
       const response = await fetch("/api/assignment", {
@@ -107,9 +98,7 @@ export default function SettingUI({approver, district, branch, product, assignme
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-        ...assignmentsToCreate
-        }),
+        body: JSON.stringify(assignmentsToCreate),
       });
      
     } catch (error) {

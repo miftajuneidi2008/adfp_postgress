@@ -27,7 +27,8 @@ export async function POST(req: Request, res: Response) {
    {
     id:user.id,
     email:user.email,
-    role:user.role
+    role:user.role,
+    branch_id:user.branch_id
    }
    const token = await jwt.sign(tokenData, process.env.JWT_SECRET_KEY!, {expiresIn:"1h"})
    const response = NextResponse.json({

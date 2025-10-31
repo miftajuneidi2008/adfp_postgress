@@ -30,7 +30,6 @@ export default async function RootLayout({
 }>) {
     const user = await getCurrentUser();
     const data = getFilteredApplications(user?.role, user?.id)
-    console.log(data)
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>

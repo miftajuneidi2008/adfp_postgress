@@ -22,15 +22,19 @@ interface Application {
   id: string;
   application_number: string;
   customer_name: string;
+  customer_id: string;
   phone_number: string;
-  status: string;
-  submitted_at: string;
-  branch: {
-    name: string;
-  };
-  product: {
-    name: string;
-  };
+  product_id: string;
+  branch_id: string;
+  status: string; // You could use a literal type for more safety: 'pending' | 'approved' | 'rejected'
+  current_approver_id: string | null;
+  submitted_by: string;
+  submitted_at: string; // Or Date if you plan to parse it
+  created_at: string;   // Or Date
+  updated_at: string;   // Or Date
+  remarks: string;
+  branch_name: string;
+  product_name: string;
 }
 
 export default function DashboardClientUI({data}:any) {
@@ -55,11 +59,9 @@ export default function DashboardClientUI({data}:any) {
 
   async function fetchApplications() {
     if (!user) return;
-
- 
-
     if (data) {
       setApplications(data);
+      console.log(data)
 
       const newApps = data.filter((a:any) => a.status === "pending").length;
       const inReview = data.filter((a:any) => a.status === "in_review").length;
@@ -76,6 +78,7 @@ export default function DashboardClientUI({data}:any) {
   }
 
   const filteredApplications = applications.filter((app) => {
+    console.log(app)
     const matchesSearch =
       app.application_number
         .toLowerCase()
@@ -84,7 +87,7 @@ export default function DashboardClientUI({data}:any) {
 
     const matchesStatus = statusFilter === "all" || app.status === statusFilter;
     const matchesProduct =
-      productFilter === "all" || app.product.name === productFilter;
+      productFilter === "all" || app.product_name === productFilter;
 
     return matchesSearch && matchesStatus && matchesProduct;
   });
@@ -263,10 +266,10 @@ export default function DashboardClientUI({data}:any) {
                     <p className="text-slate-900">{app.customer_name}</p>
                   </td>
                   <td className="px-6 py-4">
-                    <p className="text-slate-600">{app.product.name}</p>
+                    <p className="text-slate-600">{app.product_name}</p>
                   </td>
                   <td className="px-6 py-4">
-                    <p className="text-slate-600">{app.branch.name}</p>
+                    <p className="text-slate-600">{app.branch_name}</p>
                   </td>
                   <td className="px-6 py-4">
                     <p className="text-slate-600">

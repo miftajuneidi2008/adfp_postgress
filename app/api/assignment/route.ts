@@ -1,42 +1,70 @@
 import { getCurrentUser } from "@/lib/auth/hooks";
 import { NextResponse } from "next/server";
-import pool from "@/lib/postgress/postgress"; // Adjust path as needed
+import pool from "@/lib/postgress/postgress";
 
-export async function POST(req: Request, res: Response) {
+// Define the shape of a single assignment object
+interface Assignment {
+  approver_id: string;
+  district_id: string | null;
+  branch_id: string | null;
+  product_id: string | null;
+}
+
+export async function POST(req: Request) {
   const session = await getCurrentUser();
 
-  // Ensure the user is logged in and is a system admin
   if (!session || session.role !== "system_admin") {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
+  const client = await pool.connect();
+
   try {
-    // 2. Get the product data from the request body
-    const client = await pool.connect();
-    
-    const assignment = await req.json();
-    const firstItem = assignment['0'];
-    const {approver_id, district_id, branch_id, product_id} = firstItem
-  
-    const queryText = `
-      INSERT INTO approver_assignments (approver_id, district_id,branch_id,product_id)
-      VALUES ($1, $2,$3,$4)
-      RETURNING *; 
-    `;
- 
-    const values = [approver_id, district_id, branch_id, product_id];
+    // The body is now an array of assignment objects
+    const assignments: Assignment[] = await req.json();
 
-    // 5. Execute the query
-    const result = await pool.query(queryText, values);
-     const newProduct = result.rows[0];
+    // Ensure the request body is an array and not empty
+    if (!Array.isArray(assignments) || assignments.length === 0) {
+      return NextResponse.json({ message: "Bad Request: Expected an array of assignments." }, { status: 400 });
+    }
 
-    return NextResponse.json(newProduct, { status: 201 });
+    // Start a transaction
+    await client.query('BEGIN');
+
+    const insertedAssignments = [];
+
+    // Loop through each assignment in the array
+    for (const assignment of assignments) {
+      const { approver_id, district_id, branch_id, product_id } = assignment;
+
+      const queryText = `
+        INSERT INTO approver_assignments (approver_id, district_id, branch_id, product_id)
+        VALUES ($1, $2, $3, $4)
+        RETURNING *;
+      `;
+      
+      const values = [approver_id, district_id, branch_id, product_id];
+
+      // Execute the query for the current assignment
+      const result = await client.query(queryText, values);
+      insertedAssignments.push(result.rows[0]);
+    }
+
+    // If all inserts were successful, commit the transaction
+    await client.query('COMMIT');
+
+    return NextResponse.json(insertedAssignments, { status: 201 });
+
   } catch (error) {
-    console.error("Failed to create Assignment:", error);
-    // You might want to check for specific DB errors, like unique constraints
+    // If any error occurred, roll back the transaction
+    await client.query('ROLLBACK');
+    console.error("Failed to create assignments:", error);
     return NextResponse.json(
       { message: "Internal Server Error" },
       { status: 500 }
     );
+  } finally {
+    // Release the client back to the pool
+    client.release();
   }
 }

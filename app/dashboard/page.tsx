@@ -1,4 +1,3 @@
-
 import { getFilteredApplications } from "@/lib/data/dashboard";
 import { getCurrentUser } from "@/lib/auth/hooks";
 import DashboardClientUI from "./DashboardClientUI";
@@ -19,11 +18,13 @@ interface Application {
 }
 
 export default async function DashboardPage() {
-   const user = await getCurrentUser();
-      const data =await  getFilteredApplications(user?.role, user?.id)
-  return(
+  const user = await getCurrentUser();
+  console.log(user)
+  const data = await getFilteredApplications(user?.role, user?.id);
+  console.log(data)
+  return (
     <div>
-      < DashboardClientUI data={data}/>
+      <DashboardClientUI data={data} />
     </div>
-  )
+  );
 }

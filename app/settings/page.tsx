@@ -11,6 +11,7 @@ const SettingPage =async () => {
   const branch = await getBranchDistrict()
   const product = await getProductName()
   const assignment= await fetchAssignments()
+  console.log(assignment)
 
 
   return (

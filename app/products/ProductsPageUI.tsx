@@ -50,7 +50,9 @@ export default function ProductsPageUI({ product }: any) {
           is_active: true,
         }),
       });
+       const newProduct = await response.json();
       if (response.ok) {
+        setProducts((currentProducts) => [...currentProducts, newProduct]);
         setProductName("");
         setProductDescription("");
         setProductCode("");
